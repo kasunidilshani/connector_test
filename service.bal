@@ -1,5 +1,6 @@
 import ballerina/http;
 import ballerinax/scim;
+import ballerina/io;
 
 configurable string orgName = ?;
 configurable string clientId = ?;
@@ -30,9 +31,10 @@ service / on new http:Listener(9090) {
     resource function get createUser(string password, string email, string name) returns scim:UserResource|error {
         // Send a response back to the caller.
         scim:UserCreate user={password:password};
-        user.userName=string `DEFAULT/+ ${email}`;
+        user.userName=string `DEFAULT/${email}`;
+        io:println(user.userName);
         user.name={formatted:name};
-        // user.groups=[{"displayName":"team"}];
+        user.groups=[{"displayName":"team"}];
 
         scim:UserResource response = check scimClient->createUser(user);
         return response;

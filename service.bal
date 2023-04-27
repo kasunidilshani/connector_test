@@ -36,8 +36,8 @@ service / on new http:Listener(9090) {
         user.name={formatted:name};
         scim:UserResource response = check scimClient->createUser(user);
         string createdUser = response.id.toString();
-        scim:GroupUpdate Group= {members: [{"value": createdUser}]};
-        scim:GroupResource groupResponse = check scimClient->updateGroup("6308d819-c4eb-4308-9047-65fe27368da1", Group);
+        scim:GroupPatch Group = {schemas:["urn:ietf:params:scim:api:messages:2.0:PatchOp"], Operations:[{op:"add", value: {members: [{"value": createdUser, "display": user.userName}]}}]};
+        scim:GroupResource groupResponse = check scimClient->patchGroup("1fd8d238-8128-4386-8b0d-81246c6eb41d", Group);
         return response;
     }
 }

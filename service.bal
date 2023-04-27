@@ -26,4 +26,14 @@ service / on new http:Listener(9090) {
         scim:UserResource response = check scimClient->getUser(id);
         return response;
     }
+
+    resource function get createUser(string password, string email, string name) returns scim:UserResource|error {
+        // Send a response back to the caller.
+        scim:UserCreate user={password:password};
+        user.userName=string `DEFAULT/+ ${email}`;
+        user.name={formatted:name};
+
+        scim:UserResource response = check scimClient->createUser(user);
+        return response;
+    }
 }

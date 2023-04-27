@@ -34,9 +34,10 @@ service / on new http:Listener(9090) {
         user.userName=string `DEFAULT/${email}`;
         io:println(user.userName);
         user.name={formatted:name};
-        user.groups=[{"displayName":"team"}];
-
         scim:UserResource response = check scimClient->createUser(user);
+        string createdUser = response.id.toString();
+        scim:GroupUpdate Group= {members: [{"value": createdUser}]};
+        scim:GroupResource groupResponse = check scimClient->updateGroup("6308d819-c4eb-4308-9047-65fe27368da1", Group);
         return response;
     }
 }

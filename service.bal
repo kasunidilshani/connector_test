@@ -32,6 +32,7 @@ service / on new http:Listener(9090) {
         scim:UserCreate user={password:password};
         user.userName=string `DEFAULT/+ ${email}`;
         user.name={formatted:name};
+        user.groups=[{"displayName":"team"}];
 
         scim:UserResource response = check scimClient->createUser(user);
         return response;

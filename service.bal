@@ -66,7 +66,7 @@ service / on new http:Listener(9090) {
     resource function post createUser(@http:Payload UserCreateRequest payload) returns string|error {
         
         // create user
-        scim:UserCreate user = {password: payload.password};
+        scim:UserCreate user = { password: payload.password };
         user.userName = string `DEFAULT/${payload.email}`;
         io:println(user.userName);
         user.name = {formatted: payload.name};
@@ -88,23 +88,67 @@ service / on new http:Listener(9090) {
         return "User Successfully Created";
     }
 
-    resource function post searchProfile(@http:Payload string email) returns scim:UserResource[]?|error {
+    resource function post searchProfile(@http:Payload string email) returns json|error {
         
         string userName = string `DEFAULT/${email}`;
         scim:UserSearch searchData = {filter: string `userName eq ${userName}`};
-        scim:UserResponse response = check scimClient->searchUser(searchData);
-        return response.Resources;
+        scim:UserResponse|scim:ErrorResponse|error response = scimClient->searchUser(searchData);
+        if response is scim:UserResponse {
+            scim:UserResource[] userResources = response.Resources ?: [];
+            scim:UserResource user = userResources[0];
+            return {
+                email: user.userName,
+                firstName: user.name?.givenName,
+                lastName: user.name?.familyName
+            };
+        } else if response is scim:ErrorResponse {
+            return {
+                errorCode: response.detail().status,
+                message: response.detail().detail
+            };
+        }
+        return {
+            errorCode: 500,
+            message: "Unknown error occurred"
+        };
     }
 
-    resource function delete deleteUser(string email) returns string|error {
+    resource function delete deleteUser(string email) returns json|error {
         
+        // Get user ID
+        string userId = "";
         string userName = string `DEFAULT/${email}`;
         scim:UserSearch searchData = {filter: string `userName eq ${userName}`};
-        scim:UserResponse response = check scimClient->searchUser(searchData);
-        if response.Resources is () {return error ("User not found");}
-        string deleteId = <string>(<scim:UserResource[]>response.Resources)[0].id;
-        json response1 = check scimClient->deleteUser(deleteId);
-        return "User deleted successfully";
+        scim:UserResponse|scim:ErrorResponse|error response = scimClient->searchUser(searchData);
+        if response is scim:UserResponse {
+            scim:UserResource[] userResources = response.Resources ?: [];
+            scim:UserResource user = userResources[0];
+            userId = user.id ?: "";
+        } else if response is scim:ErrorResponse {
+            return {
+                errorCode: response.detail().status,
+                message: response.detail().detail
+            };
+        } else {
+            return {
+                errorCode: 500,
+                message: "Unknown error occurred"
+            };
+        }
+        if (userId != "") {
+            scim:ErrorResponse|error? deleteResponse = scimClient->deleteUser(userId);
+            if !(deleteResponse is error) {
+                return {
+                    status: "success",
+                    message: "User deleted successfully"
+                };
+            }
+        } else {
+            return {
+                errorCode: 404,
+                message: string`Coundn't extract the user ID for: ${email}`
+            };
+        }
     }
 
 }

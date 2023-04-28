@@ -40,69 +40,64 @@ type UserCreateRequest record {
     string name;
 };
 
-type UserSearchRequest record {
-    string email;
-};
+string salesGroupId = "051a8658-6946-48fc-9edf-b4dea92c8f1b";
+string marketingGroupId = "4dfbd183-7adc-4634-9924-b09e95d4979c";
+string defaultGroupId = "642e21eb-5e9b-4d7b-8aa5-858d0c19ee7f";
 
 # A service representing a network-accessible API
 # bound to port `9090`.
 service / on new http:Listener(9090) {
-    resource function get user() returns scim:UserResource|error {
-        string id = "892b2a2f-8b4d-4df6-b414-c7a7479f29c8";
-        scim:UserResource|scim:ErrorResponse|error response = scimClient->getUser(id);
-        if (response is scim:ErrorResponse) {
-            return error(response.detail().toString());
+
+    resource function get groupUserCount() returns json|error {
+        scim:GroupResource salesResponse = check scimClient->getGroup(salesGroupId);
+        int salesCount = 0;
+        if salesResponse.members != () {
+            salesCount = (<scim:Member[]>salesResponse.members).length();
         }
-        return response;
+        scim:GroupResource marketingResponse = check scimClient->getGroup(marketingGroupId);
+        int marketingCount = 0;
+        if marketingResponse.members != () {
+            marketingCount = (<scim:Member[]>marketingResponse.members).length();
+        }
+        json output = {SalesTeamCount: salesCount, MarketingTeamCount: marketingCount};
+        return output;
     }
 
-    resource function post createUser(@http:Payload UserCreateRequest payload) returns scim:UserResource|error {
+    resource function post createUser(@http:Payload UserCreateRequest payload) returns string|error {
+        
         // create user
         scim:UserCreate user = {password: payload.password};
         user.userName = string `DEFAULT/${payload.email}`;
         io:println(user.userName);
         user.name = {formatted: payload.name};
         scim:UserResource response = check scimClient->createUser(user);
-
+        string groupId;
         // add created user to the relevant group
         string createdUser = response.id.toString();
-        string groupId = "1fd8d238-8128-4386-8b0d-81246c6eb41d";
-        if regex:matches(user.userName.toString(), "@stu\\.") {
-            groupId = "1fd8d238-8128-4386-8b0d-81246c6eb41d";
+        if regex:matches(user.userName.toString(), "@sales\\.") {
+            groupId = salesGroupId;
         }
-        else if regex:matches(user.userName.toString(), "@staff\\.") {
-            groupId = "1fd8d238-8128-4386-8b0d-81246c6eb41d";
+        else if regex:matches(user.userName.toString(), "@marketing\\.") {
+            groupId = marketingGroupId;
+        }
+        else {
+            groupId = defaultGroupId;
         }
         scim:GroupPatch Group = {Operations: [{op: "add", value: {members: [{"value": createdUser, "display": user.userName}]}}]};
         scim:GroupResource groupResponse = check scimClient->patchGroup(groupId, Group);
-        return response;
+        return "User Successfully Created";
     }
 
-    resource function get groupUserCount() returns json|error {
-        string staffgroupId = "1fd8d238-8128-4386-8b0d-81246c6eb41d";
-        string stugroupId = "1fd8d238-8128-4386-8b0d-81246c6eb41d";
-        scim:GroupResource response = check scimClient->getGroup(staffgroupId);
-        int staffCount = 0;
-        if response.members != () {
-            staffCount = (<scim:Member[]>response.members).length();
-        }
-        int stuCount = 0;
-        if response.members != () {
-            stuCount = (<scim:Member[]>response.members).length();
-        }
-        scim:GroupResource response1 = check scimClient->getGroup(stugroupId);
-        json output = {staffCount: staffCount, studentCount: stuCount};
-        return output;
-    }
-
-    resource function post searchProfile(@http:Payload UserSearchRequest payload) returns scim:UserResource[]?|error {
-        string userName = string `DEFAULT/${payload.email.toString()}`;
+    resource function post searchProfile(@http:Payload string email) returns scim:UserResource[]?|error {
+        
+        string userName = string `DEFAULT/${email}`;
         scim:UserSearch searchData = {filter: string `userName eq ${userName}`};
         scim:UserResponse response = check scimClient->searchUser(searchData);
         return response.Resources;
     }
 
     resource function delete deleteUser(string email) returns string|error {
+        
         string userName = string `DEFAULT/${email}`;
         scim:UserSearch searchData = {filter: string `userName eq ${userName}`};
         scim:UserResponse response = check scimClient->searchUser(searchData);

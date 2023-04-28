@@ -1,7 +1,9 @@
 import ballerina/http;
-import ballerinax/scim;
 import ballerina/regex;
 import ballerina/io;
+
+//Import the SCIM module.
+import ballerinax/scim;
 
 configurable string orgName = ?;
 configurable string clientId = ?;
@@ -21,6 +23,7 @@ configurable string[] scope = [
     "internal_group_mgt_delete"
 ];
 
+//Create a SCIM connector configuration
 scim:ConnectorConfig scimConfig = {
     orgName: orgName,
     clientId: clientId,
@@ -28,6 +31,7 @@ scim:ConnectorConfig scimConfig = {
     scope: scope
 };
 
+//Initialize the SCIM client.
 scim:Client scimClient = check new (scimConfig);
 
 type UserCreateRequest record {
@@ -98,7 +102,7 @@ service / on new http:Listener(9090) {
         return response.Resources;
     }
 
-    resource function get deleteUser(string email) returns string|error {
+    resource function delete deleteUser(string email) returns string|error {
         string userName = string `DEFAULT/${email}`;
         scim:UserSearch searchData = {filter: string `userName eq ${userName}`};
         scim:UserResponse response = check scimClient->searchUser(searchData);

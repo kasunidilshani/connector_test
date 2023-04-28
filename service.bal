@@ -74,10 +74,10 @@ service / on new http:Listener(9090) {
         string groupId;
         // add created user to the relevant group
         string createdUser = response.id.toString();
-        if regex:matches(user.userName.toString(), "@sales\\.") {
+        if regex:matches(payload.email, "[A-Za-z0-9]+@sales\\.greenApps\\.com") {
             groupId = salesGroupId;
         }
-        else if regex:matches(user.userName.toString(), "@marketing\\.") {
+        else if regex:matches(payload.email.toString(), "[A-Za-z0-9]+@marketing\\.greenApps\\.com") {
             groupId = marketingGroupId;
         }
         else {
@@ -143,6 +143,11 @@ service / on new http:Listener(9090) {
                     message: "User deleted successfully"
                 };
             }
+        } else {
+            return {
+                errorCode: 404,
+                message: string`Coundn't extract the user ID for: ${email}`
+            };
         }
     }
 

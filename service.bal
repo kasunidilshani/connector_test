@@ -88,7 +88,7 @@ service / on new http:Listener(9090) {
         return "User Successfully Created";
     }
 
-    resource function post searchProfile(@http:Payload string email) returns json|error {
+    resource function get searchProfile(string email) returns json|error {
         
         string userName = string `DEFAULT/${email}`;
         scim:UserSearch searchData = {filter: string `userName eq ${userName}`};
